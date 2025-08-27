@@ -259,7 +259,8 @@
             feedback: "",
             feedbackTime: 0,
             options: [],
-            optionButtons: []
+            optionButtons: [],
+            imagesLoaded: false
         };
 
         // Categories and words with definitions
@@ -311,8 +312,42 @@
             }
         };
 
-        // Word images (simulated with colored boxes)
-        const wordImages = {};
+        // Word images (using emojis as a simple alternative to actual images)
+        const wordImages = {
+            "cat": "🐱",
+            "dog": "🐶",
+            "lion": "🦁",
+            "fish": "🐠",
+            "bird": "🐦",
+            "elephant": "🐘",
+            "monkey": "🐵",
+            "apple": "🍎",
+            "banana": "🍌",
+            "orange": "🍊",
+            "grape": "🍇",
+            "mango": "🥭",
+            "strawberry": "🍓",
+            "red": "🔴",
+            "blue": "🔵",
+            "green": "🟢",
+            "yellow": "🟡",
+            "purple": "🟣",
+            "pink": "🌸",
+            "circle": "⭕",
+            "square": "◼️",
+            "triangle": "🔺",
+            "star": "⭐",
+            "heart": "❤️",
+            "rectangle": "▬"
+        };
+
+        // Word image colors
+        const wordImageColors = {
+            "Animals": "#FFD700",
+            "Fruits": "#FF6347",
+            "Colors": "#9370DB",
+            "Shapes": "#20B2AA"
+        };
 
         // DOM elements
         const canvas = document.getElementById('gameCanvas');
@@ -326,29 +361,90 @@
         const scoreDisplay = document.getElementById('scoreDisplay');
         const categoryBtns = document.querySelectorAll('.category-btn');
 
-        // Generate word images (simulated with colored boxes)
-        function generateWordImages() {
-            const colorMap = {
-                "Animals": [200, 150, 100],
-                "Fruits": [255, 200, 150],
-                "Colors": [200, 200, 255],
-                "Shapes": [200, 255, 200]
-            };
+        // Audio context for sound effects
+        let audioContext;
+        let sounds = {};
+
+        // Initialize audio
+        function initAudio() {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                createSounds();
+            } catch (e) {
+                console.log("Web Audio API is not supported in this browser");
+                gameState.audioEnabled = false;
+                soundBtn.textContent = "Sound: N/A";
+                soundBtn.disabled = true;
+            }
+        }
+
+        // Create sound effects
+        function createSounds() {
+            // Correct sound
+            sounds.correct = createSound(523.25, 659.25, 783.99, 0.5);
             
-            for (const [category, data] of Object.entries(categories)) {
-                const baseColor = colorMap[category];
-                for (const word of data.words) {
-                    // Create a colored box for each word
-                    const color = `rgb(${
-                        Math.max(50, Math.min(255, baseColor[0] + Math.floor(Math.random() * 61 - 30)))
-                    }, ${
-                        Math.max(50, Math.min(255, baseColor[1] + Math.floor(Math.random() * 61 - 30)))
-                    }, ${
-                        Math.max(50, Math.min(255, baseColor[2] + Math.floor(Math.random() * 61 - 30)))
-                    })`;
-                    
-                    wordImages[word] = color;
+            // Wrong sound
+            sounds.wrong = createSound(392.00, 349.23, 293.66, 0.5);
+            
+            // Click sound
+            sounds.click = createSound(600, 400, 0, 0.1);
+            
+            // Word sounds
+            for (const category of Object.values(categories)) {
+                for (const word of category.words) {
+                    const baseFreq = 300 + (word.length * 30);
+                    sounds[word] = createSound(baseFreq, baseFreq + 100, 0, 0.3);
                 }
+            }
+        }
+
+        // Create a simple sound with up to three frequencies
+        function createSound(freq1, freq2, freq3, duration) {
+            return function() {
+                if (!gameState.audioEnabled) return;
+                
+                const oscillator1 = audioContext.createOscillator();
+                const oscillator2 = freq2 ? audioContext.createOscillator() : null;
+                const oscillator3 = freq3 ? audioContext.createOscillator() : null;
+                const gainNode = audioContext.createGain();
+                
+                oscillator1.type = 'sine';
+                oscillator1.frequency.value = freq1;
+                
+                if (oscillator2) {
+                    oscillator2.type = 'sine';
+                    oscillator2.frequency.value = freq2;
+                }
+                
+                if (oscillator3) {
+                    oscillator3.type = 'sine';
+                    oscillator3.frequency.value = freq3;
+                }
+                
+                oscillator1.connect(gainNode);
+                if (oscillator2) oscillator2.connect(gainNode);
+                if (oscillator3) oscillator3.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                // Configure sound envelope
+                const now = audioContext.currentTime;
+                gainNode.gain.setValueAtTime(0.5, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + duration);
+                
+                oscillator1.start(now);
+                if (oscillator2) oscillator2.start(now);
+                if (oscillator3) oscillator3.start(now);
+                
+                oscillator1.stop(now + duration);
+                if (oscillator2) oscillator2.stop(now + duration);
+                if (oscillator3) oscillator3.stop(now + duration);
+            };
+        }
+
+        // Play a sound
+        function playSound(soundName) {
+            if (sounds[soundName] && gameState.audioEnabled) {
+                sounds[soundName]();
             }
         }
 
@@ -356,8 +452,7 @@
         function initGame() {
             loadingEl.style.display = 'none';
             canvas.style.display = 'block';
-            generateWordImages();
-            drawMainMenu();
+            initAudio();
             
             // Start the game loop
             requestAnimationFrame(gameLoop);
@@ -435,22 +530,28 @@
 
         // Draw the game screen
         function drawGameScreen() {
-            // Draw the current word's image (simulated with a colored box)
+            // Draw the current word's image (using emoji)
             const imageX = canvas.width / 2 - 75;
             const imageY = 150;
             const imageSize = 150;
             
-            ctx.fillStyle = wordImages[gameState.currentWord] || '#cccccc';
+            // Draw image background
+            ctx.fillStyle = wordImageColors[gameState.currentCategory] || '#cccccc';
             ctx.fillRect(imageX, imageY, imageSize, imageSize);
             
             ctx.strokeStyle = '#333';
             ctx.lineWidth = 2;
             ctx.strokeRect(imageX, imageY, imageSize, imageSize);
             
+            // Draw the emoji image
+            ctx.font = '70px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(wordImages[gameState.currentWord] || '❓', imageX + imageSize/2, imageY + imageSize/2);
+            
             // Draw the word below the image
             ctx.fillStyle = '#333';
             ctx.font = '20px Arial';
-            ctx.textAlign = 'center';
             ctx.fillText(gameState.currentWord, canvas.width / 2, imageY + imageSize + 30);
             
             // Draw option buttons
@@ -504,6 +605,7 @@
             gameState.attempts = 0;
             updateScoreDisplay();
             nextWord();
+            playSound('click');
         }
 
         // Select the next word
@@ -528,6 +630,9 @@
             
             // Clear feedback
             gameState.feedback = "";
+            
+            // Play word sound
+            playSound(gameState.currentWord);
         }
 
         // Check answer
@@ -537,8 +642,10 @@
             if (selectedWord === gameState.currentWord) {
                 gameState.score++;
                 gameState.feedback = "Correct! Good job!";
+                playSound('correct');
             } else {
                 gameState.feedback = `Oops! It's ${gameState.currentWord}`;
+                playSound('wrong');
             }
             
             gameState.feedbackTime = Date.now();
@@ -554,6 +661,7 @@
         function toggleSound() {
             gameState.audioEnabled = !gameState.audioEnabled;
             soundBtn.textContent = `Sound: ${gameState.audioEnabled ? 'ON' : 'OFF'}`;
+            playSound('click');
         }
 
         // Event listeners
@@ -563,10 +671,12 @@
 
         instructionsBtn.addEventListener('click', () => {
             instructionsPanel.style.display = 'block';
+            playSound('click');
         });
 
         closeInstructionsBtn.addEventListener('click', () => {
             instructionsPanel.style.display = 'none';
+            playSound('click');
         });
 
         soundBtn.addEventListener('click', toggleSound);
@@ -579,6 +689,7 @@
                 if (!gameState.gameActive) {
                     drawMainMenu();
                 }
+                playSound('click');
             });
         });
 
@@ -608,6 +719,7 @@
                 if (x > canvas.width / 2 - 100 && x < canvas.width / 2 + 100 &&
                     y > 280 && y < 340) {
                     instructionsPanel.style.display = 'block';
+                    playSound('click');
                 }
             }
         });
@@ -616,5 +728,6 @@
         setTimeout(initGame, 1500);
     </script>
 </body>
-</html> 
+</html>
    
+
