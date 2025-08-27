@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>English Learning Game</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 900px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            margin: 20px;
+            text-align: center;
+        }
+        
+        h1 {
+            color: #4a4af4;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 25px;
+        }
+        
+        .game-container {
+            position: relative;
+            margin: 20px 0;
+        }
+        
+        canvas {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            margin: 0 auto;
+            display: block;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            background: #4a4af4;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s;
+            box-shadow: 0 4px 8px rgba(74, 74, 244, 0.3);
+        }
+        
+        .btn:hover {
+            background: #3a3ae4;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(74, 74, 244, 0.4);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            box-shadow: 0 4px 8px rgba(108, 117, 125, 0.3);
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+            box-shadow: 0 6px 12px rgba(108, 117, 125, 0.4);
+        }
+        
+        .instructions {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: left;
+        }
+        
+        .instructions h3 {
+            color: #4a4af4;
+            margin-top: 0;
+        }
+        
+        .instructions ol {
+            padding-left: 20px;
+        }
+        
+        .instructions li {
+            margin-bottom: 10px;
+        }
+        
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(74, 74, 244, 0.3);
+            border-radius: 50%;
+            border-top-color: #4a4af4;
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .category-btns {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
+        .category-btn {
+            background: #8a4af4;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        .category-btn:hover {
+            background: #7a3ae4;
+            transform: translateY(-2px);
+        }
+        
+        .category-btn.active {
+            background: #4a4af4;
+            box-shadow: 0 0 0 3px rgba(74, 74, 244, 0.3);
+        }
+        
+        .score-display {
+            font-size: 20px;
+            font-weight: bold;
+            color: #4a4af4;
+            margin: 15px 0;
+        }
+        
+        .footer {
+            margin-top: 30px;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .btn {
+                width: 100%;
+                max-width: 300px;
+            }
+            
+            canvas {
+                width: 100%;
+                height: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>English Learning Game</h1>
+        <p class="subtitle">Learn English words with this fun interactive game!</p>
+        
+        <div class="category-btns">
+            <button class="category-btn active" data-category="Animals">Animals</button>
+            <button class="category-btn" data-category="Fruits">Fruits</button>
+            <button class="category-btn" data-category="Colors">Colors</button>
+            <button class="category-btn" data-category="Shapes">Shapes</button>
+        </div>
+        
+        <div class="game-container">
+            <div id="loading" class="loading">
+                <div class="spinner"></div>
+                <p>Loading game, please wait...</p>
+            </div>
+            <canvas id="gameCanvas" width="800" height="600" style="display:none;"></canvas>
+        </div>
+        
+        <div class="score-display" id="scoreDisplay">Score: 0/0</div>
+        
+        <div class="controls">
+            <button class="btn" id="startBtn">Start Game</button>
+            <button class="btn btn-secondary" id="instructionsBtn">How to Play</button>
+            <button class="btn btn-secondary" id="soundBtn">Sound: ON</button>
+        </div>
+        
+        <div class="instructions" id="instructionsPanel" style="display: none;">
+            <h3>How to Play:</h3>
+            <ol>
+                <li>Select a category from the top</li>
+                <li>Click 'Start Game' to begin</li>
+                <li>Look at the picture and choose the correct word</li>
+                <li>Get points for correct answers</li>
+                <li>Complete 10 questions to finish the game</li>
+                <li>Use the Sound button to toggle audio</li>
+            </ol>
+            <button class="btn" id="closeInstructionsBtn">Got it!</button>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <p>Game works best in Chrome, Firefox, or Edge browsers</p>
+        <p>If the game doesn't load, try refreshing the page</p>
+    </div>
+
+    <script>
+        // Game state
+        let gameState = {
+            currentCategory: "Animals",
+            score: 0,
+            attempts: 0,
+            maxAttempts: 10,
+            gameActive: false,
+            audioEnabled: true
+        };
+
+        // Categories and words
+        const categories = {
+            "Animals": ["cat", "dog", "lion", "fish", "bird", "elephant", "monkey"],
+            "Fruits": ["apple", "banana", "orange", "grape", "mango", "strawberry"],
+            "Colors": ["red", "blue", "green", "yellow", "purple", "pink"],
+            "Shapes": ["circle", "square", "triangle", "star", "heart", "rectangle"]
+        };
+
+        // DOM elements
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const loadingEl = document.getElementById('loading');
+        const startBtn = document.getElementById('startBtn');
+        const instructionsBtn = document.getElementById('instructionsBtn');
+        const soundBtn = document.getElementById('soundBtn');
+        const instructionsPanel = document.getElementById('instructionsPanel');
+        const closeInstructionsBtn = document.getElementById('closeInstructionsBtn');
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const categoryBtns = document.querySelectorAll('.category-btn');
+
+        // Show the game canvas when loaded
+        function initGame() {
+            loadingEl.style.display = 'none';
+            canvas.style.display = 'block';
+            drawMainMenu();
+        }
+
+        // Draw the main menu
+        function drawMainMenu() {
+            ctx.fillStyle = '#e6f0ff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw title
+            ctx.fillStyle = '#4a4af4';
+            ctx.font = 'bold 48px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('English Learning Game', canvas.width / 2, 80);
+            
+            // Draw current category
+            ctx.fillStyle = '#333';
+            ctx.font = '32px Arial';
+            ctx.fillText(`Category: ${gameState.currentCategory}`, canvas.width / 2, 150);
+            
+            // Draw start button
+            drawButton(canvas.width / 2 - 100, 200, 200, 60, 'Start Game', '#4a4af4');
+            
+            // Draw instructions button
+            drawButton(canvas.width / 2 - 100, 280, 200, 60, 'How to Play', '#6c757d');
+            
+            // Draw high score if available
+            if (gameState.attempts > 0) {
+                ctx.fillStyle = '#4a4af4';
+                ctx.font = '24px Arial';
+                ctx.fillText(`Last Score: ${gameState.score}/${gameState.attempts}`, canvas.width / 2, 380);
+            }
+        }
+
+        // Draw a button
+        function drawButton(x, y, width, height, text, color) {
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.roundRect(x, y, width, height, 12);
+            ctx.fill();
+            
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 24px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, x + width / 2, y + height / 2);
+        }
+
+        // Start a new game
+        function startGame() {
+            gameState.gameActive = true;
+            gameState.score = 0;
+            gameState.attempts = 0;
+            updateScoreDisplay();
+            nextWord();
+        }
+
+        // Select the next word
+        function nextWord() {
+            // This would be implemented in the full game
+        }
+
+        // Update score display
+        function updateScoreDisplay() {
+            scoreDisplay.textContent = `Score: ${gameState.score}/${gameState.attempts}`;
+        }
+
+        // Toggle sound
+        function toggleSound() {
+            gameState.audioEnabled = !gameState.audioEnabled;
+            soundBtn.textContent = `Sound: ${gameState.audioEnabled ? 'ON' : 'OFF'}`;
+        }
+
+        // Event listeners
+        startBtn.addEventListener('click', () => {
+            startGame();
+        });
+
+        instructionsBtn.addEventListener('click', () => {
+            instructionsPanel.style.display = 'block';
+        });
+
+        closeInstructionsBtn.addEventListener('click', () => {
+            instructionsPanel.style.display = 'none';
+        });
+
+        soundBtn.addEventListener('click', toggleSound);
+
+        categoryBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                categoryBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                gameState.currentCategory = btn.dataset.category;
+                if (!gameState.gameActive) {
+                    drawMainMenu();
+                }
+            });
+        });
+
+        // Initialize the game after a short delay to simulate loading
+        setTimeout(initGame, 2000);
+
+        // Handle canvas clicks
+        canvas.addEventListener('click', (e) => {
+            if (!gameState.gameActive) {
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                // Check if start button was clicked
+                if (x > canvas.width / 2 - 100 && x < canvas.width / 2 + 100 &&
+                    y > 200 && y < 260) {
+                    startGame();
+                }
+                
+                // Check if instructions button was clicked
+                if (x > canvas.width / 2 - 100 && x < canvas.width / 2 + 100 &&
+                    y > 280 && y < 340) {
+                    instructionsPanel.style.display = 'block';
+                }
+            }
+        });
+    </script>
+</body>
+</html>
