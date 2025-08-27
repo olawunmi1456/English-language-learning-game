@@ -250,20 +250,69 @@
         // Game state
         let gameState = {
             currentCategory: "Animals",
+            currentWord: "",
             score: 0,
             attempts: 0,
             maxAttempts: 10,
             gameActive: false,
-            audioEnabled: true
+            audioEnabled: true,
+            feedback: "",
+            feedbackTime: 0,
+            options: [],
+            optionButtons: []
         };
 
-        // Categories and words
+        // Categories and words with definitions
         const categories = {
-            "Animals": ["cat", "dog", "lion", "fish", "bird", "elephant", "monkey"],
-            "Fruits": ["apple", "banana", "orange", "grape", "mango", "strawberry"],
-            "Colors": ["red", "blue", "green", "yellow", "purple", "pink"],
-            "Shapes": ["circle", "square", "triangle", "star", "heart", "rectangle"]
+            "Animals": {
+                "words": ["cat", "dog", "lion", "fish", "bird", "elephant", "monkey"],
+                "definitions": {
+                    "cat": "A small domesticated carnivorous mammal with soft fur.",
+                    "dog": "A domesticated carnivorous mammal that typically has a long snout.",
+                    "lion": "A large, powerful cat that lives in parts of Africa and India.",
+                    "fish": "A limbless cold-blooded vertebrate animal with gills and fins.",
+                    "bird": "A warm-blooded egg-laying vertebrate with feathers and wings.",
+                    "elephant": "A very large plant-eating mammal with a prehensile trunk.",
+                    "monkey": "A primate, often with a long tail, typically living in trees."
+                }
+            },
+            "Fruits": {
+                "words": ["apple", "banana", "orange", "grape", "mango", "strawberry"],
+                "definitions": {
+                    "apple": "A round fruit with red, green, or yellow skin and crisp flesh.",
+                    "banana": "A long curved fruit with a yellow skin and soft sweet flesh.",
+                    "orange": "A round juicy citrus fruit with a tough bright reddish-yellow rind.",
+                    "grape": "A small round fruit that grows in clusters on a vine.",
+                    "mango": "A tropical fruit with smooth yellow or red skin and sweet yellow flesh.",
+                    "strawberry": "A sweet soft red fruit with a seed-studded surface."
+                }
+            },
+            "Colors": {
+                "words": ["red", "blue", "green", "yellow", "purple", "pink"],
+                "definitions": {
+                    "red": "The color of blood, rubies, or strawberries.",
+                    "blue": "The color of the sky or the sea on a sunny day.",
+                    "green": "The color of grass, leaves, or emeralds.",
+                    "yellow": "The color of lemons, butter, or ripe corn.",
+                    "purple": "A color intermediate between red and blue.",
+                    "pink": "A pale red color, named after the flower of the same name."
+                }
+            },
+            "Shapes": {
+                "words": ["circle", "square", "triangle", "star", "heart", "rectangle"],
+                "definitions": {
+                    "circle": "A round plane figure whose boundary consists of points equidistant from the center.",
+                    "square": "A plane figure with four equal straight sides and four right angles.",
+                    "triangle": "A plane figure with three straight sides and three angles.",
+                    "star": "A shape that represents a star, typically having five or more points.",
+                    "heart": "A shape representing the human heart, often symbolizing love.",
+                    "rectangle": "A plane figure with four straight sides and four right angles."
+                }
+            }
         };
+
+        // Word images (simulated with colored boxes)
+        const wordImages = {};
 
         // DOM elements
         const canvas = document.getElementById('gameCanvas');
@@ -277,18 +326,81 @@
         const scoreDisplay = document.getElementById('scoreDisplay');
         const categoryBtns = document.querySelectorAll('.category-btn');
 
+        // Generate word images (simulated with colored boxes)
+        function generateWordImages() {
+            const colorMap = {
+                "Animals": [200, 150, 100],
+                "Fruits": [255, 200, 150],
+                "Colors": [200, 200, 255],
+                "Shapes": [200, 255, 200]
+            };
+            
+            for (const [category, data] of Object.entries(categories)) {
+                const baseColor = colorMap[category];
+                for (const word of data.words) {
+                    // Create a colored box for each word
+                    const color = `rgb(${
+                        Math.max(50, Math.min(255, baseColor[0] + Math.floor(Math.random() * 61 - 30)))
+                    }, ${
+                        Math.max(50, Math.min(255, baseColor[1] + Math.floor(Math.random() * 61 - 30)))
+                    }, ${
+                        Math.max(50, Math.min(255, baseColor[2] + Math.floor(Math.random() * 61 - 30)))
+                    })`;
+                    
+                    wordImages[word] = color;
+                }
+            }
+        }
+
         // Show the game canvas when loaded
         function initGame() {
             loadingEl.style.display = 'none';
             canvas.style.display = 'block';
+            generateWordImages();
             drawMainMenu();
+            
+            // Start the game loop
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Game loop
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Update game state
+        function update() {
+            // Update feedback timer
+            if (gameState.feedback && Date.now() - gameState.feedbackTime > 1000) {
+                gameState.feedback = "";
+                
+                // If game is active and we have attempts left, go to next word
+                if (gameState.gameActive && gameState.attempts < gameState.maxAttempts) {
+                    nextWord();
+                } else if (gameState.attempts >= gameState.maxAttempts) {
+                    // Game over
+                    gameState.gameActive = false;
+                }
+            }
+        }
+
+        // Draw the game
+        function draw() {
+            // Clear canvas
+            ctx.fillStyle = '#e6f0ff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            if (gameState.gameActive) {
+                drawGameScreen();
+            } else {
+                drawMainMenu();
+            }
         }
 
         // Draw the main menu
         function drawMainMenu() {
-            ctx.fillStyle = '#e6f0ff';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
             // Draw title
             ctx.fillStyle = '#4a4af4';
             ctx.font = 'bold 48px Arial';
@@ -310,8 +422,61 @@
             if (gameState.attempts > 0) {
                 ctx.fillStyle = '#4a4af4';
                 ctx.font = '24px Arial';
-                ctx.fillText(`Last Score: ${gameState.score}/${gameState.attempts}`, canvas.width / 2, 380);
+                ctx.fillText(`Score: ${gameState.score}/${gameState.attempts}`, canvas.width / 2, 380);
+                
+                // Draw game over message if game is complete
+                if (gameState.attempts >= gameState.maxAttempts) {
+                    ctx.fillStyle = '#d9534f';
+                    ctx.font = '36px Arial';
+                    ctx.fillText('Game Over!', canvas.width / 2, 450);
+                }
             }
+        }
+
+        // Draw the game screen
+        function drawGameScreen() {
+            // Draw the current word's image (simulated with a colored box)
+            const imageX = canvas.width / 2 - 75;
+            const imageY = 150;
+            const imageSize = 150;
+            
+            ctx.fillStyle = wordImages[gameState.currentWord] || '#cccccc';
+            ctx.fillRect(imageX, imageY, imageSize, imageSize);
+            
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(imageX, imageY, imageSize, imageSize);
+            
+            // Draw the word below the image
+            ctx.fillStyle = '#333';
+            ctx.font = '20px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(gameState.currentWord, canvas.width / 2, imageY + imageSize + 30);
+            
+            // Draw option buttons
+            gameState.optionButtons = [];
+            for (let i = 0; i < gameState.options.length; i++) {
+                const x = 200 + (i % 2) * 300;
+                const y = 350 + Math.floor(i / 2) * 100;
+                const width = 250;
+                const height = 80;
+                
+                drawButton(x, y, width, height, gameState.options[i], '#4a4af4');
+                gameState.optionButtons.push({x, y, width, height, text: gameState.options[i]});
+            }
+            
+            // Draw feedback if any
+            if (gameState.feedback) {
+                ctx.fillStyle = '#333';
+                ctx.font = '28px Arial';
+                ctx.fillText(gameState.feedback, canvas.width / 2, 500);
+            }
+            
+            // Draw score
+            ctx.fillStyle = '#4a4af4';
+            ctx.font = '24px Arial';
+            ctx.textAlign = 'right';
+            ctx.fillText(`Score: ${gameState.score}/${gameState.attempts}`, canvas.width - 30, 50);
         }
 
         // Draw a button
@@ -343,7 +508,41 @@
 
         // Select the next word
         function nextWord() {
-            // This would be implemented in the full game
+            const words = categories[gameState.currentCategory].words;
+            gameState.currentWord = words[Math.floor(Math.random() * words.length)];
+            
+            // Create options (correct answer + 3 random wrong answers)
+            gameState.options = [gameState.currentWord];
+            while (gameState.options.length < 4) {
+                const randomWord = words[Math.floor(Math.random() * words.length)];
+                if (!gameState.options.includes(randomWord)) {
+                    gameState.options.push(randomWord);
+                }
+            }
+            
+            // Shuffle options
+            for (let i = gameState.options.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [gameState.options[i], gameState.options[j]] = [gameState.options[j], gameState.options[i]];
+            }
+            
+            // Clear feedback
+            gameState.feedback = "";
+        }
+
+        // Check answer
+        function checkAnswer(selectedWord) {
+            gameState.attempts++;
+            
+            if (selectedWord === gameState.currentWord) {
+                gameState.score++;
+                gameState.feedback = "Correct! Good job!";
+            } else {
+                gameState.feedback = `Oops! It's ${gameState.currentWord}`;
+            }
+            
+            gameState.feedbackTime = Date.now();
+            updateScoreDisplay();
         }
 
         // Update score display
@@ -383,16 +582,22 @@
             });
         });
 
-        // Initialize the game after a short delay to simulate loading
-        setTimeout(initGame, 2000);
-
         // Handle canvas clicks
         canvas.addEventListener('click', (e) => {
-            if (!gameState.gameActive) {
-                const rect = canvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-                
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            if (gameState.gameActive) {
+                // Check if any option button was clicked
+                for (const button of gameState.optionButtons) {
+                    if (x >= button.x && x <= button.x + button.width &&
+                        y >= button.y && y <= button.y + button.height) {
+                        checkAnswer(button.text);
+                        return;
+                    }
+                }
+            } else {
                 // Check if start button was clicked
                 if (x > canvas.width / 2 - 100 && x < canvas.width / 2 + 100 &&
                     y > 200 && y < 260) {
@@ -406,6 +611,10 @@
                 }
             }
         });
+
+        // Initialize the game after a short delay to simulate loading
+        setTimeout(initGame, 1500);
     </script>
 </body>
-</html>
+</html> 
+   
